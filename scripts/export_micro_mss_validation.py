@@ -198,12 +198,26 @@ def validate_events(
     internal_swings_5m,
     micro_events,
 ):
-    """Validate chronology and reference-swing constraints."""
+    """
+    Validate chronology and reference-swing constraints.
+
+    V1.2 alignment:
+        The detector selects the reference swing using
+        `confirmed_before = retest_timestamp` (retest candle OPEN),
+        not `retest_end` (retest candle CLOSE). Validation must
+        mirror that exact criterion, otherwise every event is
+        flagged CHECK for the wrong reason.
+    """
     rows = []
+
+    # Prepare swings ONCE — not per event.
+    prepared_swings = _prepare_swings(internal_swings_5m)
 
     for event_id, event in enumerate(micro_events, start=1):
         mss_ts = _normalize_timestamp(event.mss_timestamp)
-        displacement_ts = _normalize_timestamp(event.displacement_timestamp)
+        displacement_ts = _normalize_timestamp(
+            event.displacement_timestamp
+        )
         retest_ts = _normalize_timestamp(event.retest_timestamp)
         micro_ts = _normalize_timestamp(event.timestamp)
 
@@ -218,29 +232,38 @@ def validate_events(
         reference_error = None
 
         try:
-            prepared = _prepare_swings(internal_swings_5m)
-
             direction = getattr(event, "direction", "")
             direction = str(
                 getattr(direction, "value", direction)
             ).lower()
 
+            # ---------------------------------------------------------
+            # V1.2 FIX: use `confirmed_before=retest_ts` (retest candle
+            # OPEN), not `retest_end` (retest candle CLOSE). This mirrors
+            # the detector's selection criterion exactly and removes the
+            # look-ahead that previously made every event fail validation.
+            # ---------------------------------------------------------
             reference_swing = _find_reference_swings(
-                prepared,
+                prepared_swings,
                 direction=direction,
-                retest_end=retest_ts + pd.Timedelta(hours=1),
+                confirmed_before=retest_ts,
             )
         except Exception as exc:
             reference_error = str(exc)
 
         reference_ts = None
         reference_price = None
+        reference_confirmed_at = None
 
         if reference_swing is not None:
             if isinstance(reference_swing, dict):
                 reference_ts = (
                     reference_swing.get("timestamp")
                     or reference_swing.get("price_timestamp")
+                )
+                reference_confirmed_at = (
+                    reference_swing.get("confirmed_at")
+                    or reference_swing.get("confirmation_time")
                 )
                 reference_price = (
                     reference_swing.get("price")
@@ -251,6 +274,9 @@ def validate_events(
                 reference_ts = getattr(
                     reference_swing, "timestamp", None
                 )
+                reference_confirmed_at = getattr(
+                    reference_swing, "confirmed_at", None
+                )
                 reference_price = getattr(
                     reference_swing, "price", None
                 )
@@ -258,9 +284,16 @@ def validate_events(
         if reference_ts is not None:
             reference_ts = _normalize_timestamp(reference_ts)
 
+        if reference_confirmed_at is not None:
+            reference_confirmed_at = _normalize_timestamp(
+                reference_confirmed_at
+            )
+
+        # V1.2: the swing must be *confirmed* before the retest
+        # candle OPENED — not merely have a pivot timestamp before it.
         reference_before_retest = (
-            reference_ts is not None
-            and reference_ts < retest_ts
+            reference_confirmed_at is not None
+            and reference_confirmed_at <= retest_ts
         )
 
         # The detector already exposes this value. We only validate that
@@ -285,6 +318,9 @@ def validate_events(
             "retest_timestamp": normalize_value(event.retest_timestamp),
             "broken_swing_timestamp": normalize_value(
                 getattr(event, "broken_swing_timestamp", None)
+            ),
+            "broken_swing_confirmed_at": normalize_value(
+                reference_confirmed_at
             ),
             "broken_swing_price": getattr(
                 event, "broken_swing_price", None
@@ -447,8 +483,24 @@ def main():
     print(f"  PASS events                 : {pass_count:,}/{total:,}")
     print(f"  Invalid chronology          : {invalid_sequence:,}")
     print(f"  Micro-MSS before 1H close  : {before_retest:,}")
-    print(f"  Reference after retest     : {bad_reference:,}")
+    print(f"  Reference confirmed after retest open : {bad_reference:,}")
     print(f"  Distance < 0.25 ATR        : {bad_distance:,}")
+
+    # ---------------------------------------------------------
+    # Surface any reference-validation errors (should be empty
+    # in V1.2 — the old 'unexpected keyword argument' bug is gone).
+    # ---------------------------------------------------------
+    if not validation_df.empty:
+        errors = validation_df[
+            validation_df["reference_validation_error"].notna()
+        ]
+        if not errors.empty:
+            print("\nReference validation errors:")
+            for _, row in errors.iterrows():
+                print(
+                    f"  event {row['event_id']}: "
+                    f"{row['reference_validation_error']}"
+                )
 
     print("\nOutput:")
     print(f"  Events CSV : {events_csv}")

@@ -143,7 +143,7 @@ def _latest_confirmed_swing(
 ):
     """
     Returns the latest confirmed swing of the requested kind
-    available at the moment the retest candle has closed.
+    available at the moment `confirmed_before`.
     """
     candidate = None
 
@@ -165,7 +165,7 @@ def _find_reference_swings(
     swings: list,
     *,
     direction: str,
-    retest_end: pd.Timestamp,
+    confirmed_before: pd.Timestamp,
 ):
     """
     Bullish setup:
@@ -173,19 +173,22 @@ def _find_reference_swings(
 
     Bearish setup:
         break the latest confirmed swing LOW.
+
+    `confirmed_before` is the instant up to which a swing must
+    have been confirmed to be eligible as the reference.
     """
     if direction == "bullish":
         return _latest_confirmed_swing(
             swings,
             kind="high",
-            confirmed_before=retest_end,
+            confirmed_before=confirmed_before,
         )
 
     if direction == "bearish":
         return _latest_confirmed_swing(
             swings,
             kind="low",
-            confirmed_before=retest_end,
+            confirmed_before=confirmed_before,
         )
 
     return None
@@ -256,8 +259,12 @@ def detect_micro_mss(
         Retest -> close below latest confirmed 5M swing low.
 
     Important:
-        The reference swing is fixed at retest confirmation time.
-        New pivots created after the retest cannot replace it.
+        The reference swing is fixed at retest OPEN time.
+        New pivots created during the retest candle (or after)
+        cannot replace it. This matches the validation script's
+        `reference_before_retest` criterion and removes
+        look-ahead selection of a swing that was only
+        confirmed during the retest candle itself.
 
     Also enforces:
 
@@ -278,6 +285,13 @@ def detect_micro_mss(
         Micro-MSS despite carrying little structural meaning.
         ATR is computed on the 5m series itself (not 1h), since
         the structure being measured is the 5m structure.
+
+    V1.2 (look-ahead fix):
+        The reference swing is now selected using
+        `confirmed_before = retest_timestamp` (retest candle
+        OPEN) instead of `retest_end` (retest candle CLOSE).
+        The future scan window for the actual break is
+        unchanged (`df_5m.index >= retest_end`).
     """
 
     _validate_5m_dataframe(df_5m)
@@ -354,14 +368,22 @@ def detect_micro_mss(
         #
         # retest_timestamp is the OPEN time of the 1H candle.
         #
-        # The retest is only confirmed after that candle closes.
+        # The retest is only confirmed after that candle closes,
+        # so the Micro-MSS *scan window* starts at retest_end.
+        #
+        # HOWEVER, the reference swing must be the one known
+        # at the moment the retest candle OPENED, i.e. at
+        # retest_timestamp. This matches the validation script's
+        # `reference_before_retest` criterion and avoids
+        # look-ahead selection of a swing that was only
+        # confirmed during the retest candle itself.
         # ---------------------------------------------------------
         retest_end = retest_timestamp + pd.Timedelta(hours=1)
 
         reference_swing = _find_reference_swings(
             swings,
             direction=direction,
-            retest_end=retest_end,
+            confirmed_before=retest_timestamp,
         )
 
         if reference_swing is None:

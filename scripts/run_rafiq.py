@@ -2,12 +2,10 @@
 Rafiq - Multi-Symbol Runner
 ============================
 
-یک اسکریپت، همه‌ی جفت‌ارزها. هیچ فایلی عوض نمی‌شود.
-
 Usage:
     python scripts/run_rafiq.py                    # BTC + ETH + SOL
-    python scripts/run_rafiq.py --symbol ETHUSDT   # فقط ETH
-    python scripts/run_rafiq.py --all              # همه‌ی جفت‌ارزهای data/
+    python scripts/run_rafiq.py --symbol ETHUSDT   # one symbol
+    python scripts/run_rafiq.py --all              # all symbols
 """
 
 from __future__ import annotations
@@ -15,6 +13,7 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
@@ -51,25 +50,144 @@ from src.strategy.entry_detector import (
 )
 
 
-# ============================================================
-# DEFAULT SYMBOLS
-# ============================================================
-
-DEFAULT_SYMBOLS = [
-    "BTCUSDT",
-    "ETHUSDT",
-    "SOLUSDT",
-]
+DEFAULT_SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
 
 
 # ============================================================
-# DISCOVER SYMBOLS
+# 4H BIAS
+# ============================================================
+
+def detect_4h_bias_at(swings_4h, timestamp) -> str:
+    """
+    Infer 4H bias from swings confirmed before `timestamp`.
+    """
+
+    ts = pd.Timestamp(timestamp)
+
+    highs = []
+    lows = []
+
+    for swing in swings_4h:
+
+        confirmed_at = getattr(swing, "confirmed_at", None)
+        if confirmed_at is None:
+            continue
+
+        try:
+            confirmed_ts = pd.Timestamp(confirmed_at)
+        except Exception:
+            continue
+
+        if confirmed_ts > ts:
+            continue
+
+        kind = getattr(swing, "kind", None)
+        price = getattr(swing, "price", None)
+
+        if kind is None or price is None:
+            continue
+
+        kind = str(kind).lower()
+
+        try:
+            price = float(price)
+        except (TypeError, ValueError):
+            continue
+
+        if kind in {"high", "swing_high", "sh"}:
+            highs.append(price)
+        elif kind in {"low", "swing_low", "sl"}:
+            lows.append(price)
+
+    if len(highs) < 2 or len(lows) < 2:
+        return "neutral"
+
+    last_high, prev_high = highs[-1], highs[-2]
+    last_low, prev_low = lows[-1], lows[-2]
+
+    if last_high > prev_high and last_low > prev_low:
+        return "bullish"
+
+    if last_high < prev_high and last_low < prev_low:
+        return "bearish"
+
+    return "neutral"
+
+
+# ============================================================
+# CONTEXT BUILDER (full)
+# ============================================================
+
+def build_full_context(
+    df_5m_indexed,
+    micro_events,
+    mss_events,
+    sweeps,
+    swings_4h,
+) -> dict[str, Any]:
+    """
+    Build context with:
+        - entry_prices
+        - bias_by_timestamp
+        - sweeps_by_mss_timestamp
+    """
+
+    # 1. Entry prices
+    entry_prices: dict[str, float] = {}
+    for micro in micro_events:
+        ts = getattr(micro, "timestamp", None)
+        if ts is None:
+            continue
+        try:
+            entry_prices[str(ts)] = float(
+                df_5m_indexed.loc[ts, "close"]
+            )
+        except KeyError:
+            continue
+
+    # 2. Bias by timestamp
+    bias_by_ts: dict[str, str] = {}
+    for micro in micro_events:
+        ts = getattr(micro, "timestamp", None)
+        if ts is None:
+            continue
+        bias_by_ts[str(ts)] = detect_4h_bias_at(swings_4h, ts)
+
+    # 3. Sweeps by MSS timestamp
+    sweeps_by_mss_ts: dict[str, Any] = {}
+
+    sweep_by_timestamp = {}
+    for sweep in sweeps:
+        ts = getattr(sweep, "timestamp", None)
+        if ts is None:
+            continue
+        sweep_by_timestamp[str(ts)] = sweep
+
+    for mss in mss_events:
+        mss_ts = getattr(mss, "timestamp", None)
+        if mss_ts is None:
+            continue
+
+        sweep_ts = getattr(mss, "sweep_timestamp", None)
+        if sweep_ts is None:
+            continue
+
+        sweep = sweep_by_timestamp.get(str(sweep_ts))
+        if sweep is not None:
+            sweeps_by_mss_ts[str(mss_ts)] = sweep
+
+    return {
+        "entry_prices": entry_prices,
+        "bias_by_timestamp": bias_by_ts,
+        "sweeps_by_mss_timestamp": sweeps_by_mss_ts,
+    }
+
+
+# ============================================================
+# DISCOVER
 # ============================================================
 
 def discover_symbols() -> list[str]:
-    """
-    هر پوشه‌ای در data/ که اسمش USDT دارد.
-    """
     base = Path(DATA_DIR)
     if not base.exists():
         return []
@@ -84,12 +202,11 @@ def discover_symbols() -> list[str]:
             continue
         if "USDT" in item.name:
             symbols.append(item.name)
-
     return symbols
 
 
 # ============================================================
-# PIPELINE FOR ONE SYMBOL
+# PIPELINE
 # ============================================================
 
 def run_pipeline(symbol: str) -> dict | None:
@@ -98,91 +215,57 @@ def run_pipeline(symbol: str) -> dict | None:
     print(f"RUNNING PIPELINE FOR: {symbol}")
     print(f"{'=' * 72}")
 
-    # --------------------------------------------------------
-    # Load 5M data
-    # --------------------------------------------------------
     try:
         df_5m = load_year(DATA_DIR, symbol, "5m", YEAR)
     except Exception as exc:
         print(f"  ✗ could not load {symbol} 5m data: {exc}")
         return None
 
+    if df_5m.empty:
+        print(f"  ✗ no data for {symbol}")
+        return None
+
     print(f"5M candles: {len(df_5m):,}")
 
-    # --------------------------------------------------------
-    # Resample to 1H and 4H
-    # --------------------------------------------------------
     df_1h = resample_ohlcv(df_5m, "1h")
     df_4h = resample_ohlcv(df_5m, "4h")
 
-    # --------------------------------------------------------
-    # 4H swings
-    # --------------------------------------------------------
     swings_4h = detect_pivots(
         df_4h, left_bars=2, right_bars=2, timeframe="4h"
     )
 
-    # --------------------------------------------------------
-    # Liquidity
-    # --------------------------------------------------------
     swing_zones = detect_swing_liquidity(swings_4h)
     equal_highs = detect_equal_highs(
-        df_1h,
-        tolerance_atr=0.15,
-        atr_period=14,
-        lookback=100,
-        pivot_window=3,
+        df_1h, tolerance_atr=0.15, atr_period=14,
+        lookback=100, pivot_window=3,
     )
     equal_lows = detect_equal_lows(
-        df_1h,
-        tolerance_atr=0.15,
-        atr_period=14,
-        lookback=100,
-        pivot_window=3,
+        df_1h, tolerance_atr=0.15, atr_period=14,
+        lookback=100, pivot_window=3,
     )
     previous_day = detect_previous_day_liquidity(df_1h)
     zones = deduplicate_zones(
         swing_zones + equal_highs + equal_lows + previous_day
     )
 
-    # --------------------------------------------------------
-    # Sweeps
-    # --------------------------------------------------------
     sweeps = detect_sweeps(df_1h, zones, atr_period=14)
 
-    # --------------------------------------------------------
-    # 1H internal swings
-    # --------------------------------------------------------
     internal_swings_1h = detect_pivots(
         df_1h, left_bars=2, right_bars=2, timeframe="1h"
     )
 
-    # --------------------------------------------------------
-    # MSS
-    # --------------------------------------------------------
     mss_events = detect_mss(
-        df_1h,
-        sweeps,
-        internal_swings_1h,
+        df_1h, sweeps, internal_swings_1h,
         max_bars_after_sweep=12,
     )
 
-    # --------------------------------------------------------
-    # Displacement
-    # --------------------------------------------------------
     displacement_events = detect_displacements(
-        df_1h,
-        mss_events,
-        atr_period=14,
-        min_body_atr=1.0,
-        bullish_clv=0.70,
-        bearish_clv=0.30,
+        df_1h, mss_events,
+        atr_period=14, min_body_atr=1.0,
+        bullish_clv=0.70, bearish_clv=0.30,
         max_bars_after_mss=8,
     )
 
-    # --------------------------------------------------------
-    # Order Blocks + FVG
-    # --------------------------------------------------------
     ob_events = detect_order_blocks(
         df_1h, displacement_events, lookback=8,
     )
@@ -191,9 +274,6 @@ def run_pipeline(symbol: str) -> dict | None:
         search_bars=3, atr_period=14,
     )
 
-    # --------------------------------------------------------
-    # Retests
-    # --------------------------------------------------------
     ob_retests = detect_ob_retests(
         df_1h, ob_events, max_bars_after_zone=24,
     )
@@ -202,16 +282,10 @@ def run_pipeline(symbol: str) -> dict | None:
     )
     all_retests = list(ob_retests) + list(fvg_retests)
 
-    # --------------------------------------------------------
-    # 5M swings
-    # --------------------------------------------------------
     internal_swings_5m = detect_pivots(
         df_5m, left_bars=2, right_bars=2, timeframe="5m",
     )
 
-    # --------------------------------------------------------
-    # Index 5M by timestamp
-    # --------------------------------------------------------
     df_5m_indexed = df_5m.copy()
     df_5m_indexed["timestamp"] = pd.to_datetime(
         df_5m_indexed["timestamp"], utc=True
@@ -220,13 +294,8 @@ def run_pipeline(symbol: str) -> dict | None:
         df_5m_indexed.set_index("timestamp").sort_index()
     )
 
-    # --------------------------------------------------------
-    # Micro-MSS
-    # --------------------------------------------------------
     micro_events = detect_micro_mss(
-        df_5m_indexed,
-        all_retests,
-        internal_swings_5m,
+        df_5m_indexed, all_retests, internal_swings_5m,
         max_bars_after_retest=24,
         min_reference_distance_atr=0.25,
     )
@@ -235,25 +304,20 @@ def run_pipeline(symbol: str) -> dict | None:
     print(f"Micro-MSS: {len(micro_events):,}")
 
     # --------------------------------------------------------
-    # Entry context (entry_prices)
+    # FULL CONTEXT (bias + sweeps + entry_prices)
     # --------------------------------------------------------
-    entry_prices: dict[str, float] = {}
-    for micro in micro_events:
-        ts = getattr(micro, "timestamp", None)
-        if ts is None:
-            continue
-        try:
-            entry_prices[str(ts)] = float(
-                df_5m_indexed.loc[ts, "close"]
-            )
-        except KeyError:
-            continue
+    context = build_full_context(
+        df_5m_indexed=df_5m_indexed,
+        micro_events=micro_events,
+        mss_events=mss_events,
+        sweeps=sweeps,
+        swings_4h=swings_4h,
+    )
 
-    context = {"entry_prices": entry_prices}
+    bias_dist = Counter(context["bias_by_timestamp"].values())
+    print(f"Bias distribution: {dict(bias_dist)}")
+    print(f"Sweeps linked    : {len(context['sweeps_by_mss_timestamp'])}")
 
-    # --------------------------------------------------------
-    # Entry candidates
-    # --------------------------------------------------------
     candidates = detect_entry_candidates(
         micro_mss_events=micro_events,
         retests=all_retests,
@@ -270,9 +334,6 @@ def run_pipeline(symbol: str) -> dict | None:
         candidates, min_score=MIN_ENTRY_SCORE,
     )
 
-    # --------------------------------------------------------
-    # Save per-symbol outputs
-    # --------------------------------------------------------
     out_dir = Path(DATA_DIR) / "validation" / symbol
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -287,9 +348,6 @@ def run_pipeline(symbol: str) -> dict | None:
             index=False,
         )
 
-    # --------------------------------------------------------
-    # Summary
-    # --------------------------------------------------------
     scores = [c.score for c in candidates] if candidates else []
 
     direction_counts = Counter(
@@ -324,24 +382,15 @@ def run_pipeline(symbol: str) -> dict | None:
 
 
 # ============================================================
-# ARGUMENT PARSING
+# CLI
 # ============================================================
 
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Rafiq multi-symbol runner",
     )
-    parser.add_argument(
-        "--symbol",
-        type=str,
-        default=None,
-        help="Run for one symbol (e.g. ETHUSDT)",
-    )
-    parser.add_argument(
-        "--all",
-        action="store_true",
-        help="Run for every symbol in data/",
-    )
+    parser.add_argument("--symbol", type=str, default=None)
+    parser.add_argument("--all", action="store_true")
     return parser.parse_args()
 
 
@@ -359,7 +408,6 @@ def resolve_symbols(args) -> list[str]:
 
 def main():
     args = parse_args()
-
     symbols = resolve_symbols(args)
 
     print("=" * 72)
@@ -380,18 +428,12 @@ def main():
         if summary is not None:
             summaries.append(summary)
 
-    # --------------------------------------------------------
-    # Comparison report
-    # --------------------------------------------------------
     if summaries:
         comparison = pd.DataFrame(summaries)
-
         comparison_path = (
             Path(DATA_DIR) / "validation" / "comparison.csv"
         )
-        comparison_path.parent.mkdir(
-            parents=True, exist_ok=True,
-        )
+        comparison_path.parent.mkdir(parents=True, exist_ok=True)
         comparison.to_csv(comparison_path, index=False)
 
         print("\n" + "=" * 72)
@@ -399,7 +441,6 @@ def main():
         print("=" * 72)
         print(comparison.to_string(index=False))
         print(f"\nSaved: {comparison_path}")
-
     else:
         print("\nNo symbols processed successfully.")
 

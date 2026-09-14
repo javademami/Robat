@@ -1,0 +1,98 @@
+2026-09-13 20:40:57 - tick_vault - INFO - download_range:48 - Starting download for EURUSD from 2023-01-01 to 2025-12-31
+2026-09-13 20:40:57 - tick_vault - DEBUG - __init__:50 - Initialized metadata database at tick_vault_data\metadata.db
+2026-09-13 20:40:57 - tick_vault - DEBUG - _ensure_table_exists:75 - Ensuring table exists for symbol: EURUSD
+2026-09-13 20:40:57 - tick_vault - DEBUG - find_not_attempted_chunks:189 - Found 26280 not-attempted chunks for EURUSD from 2023-01-01 to 2025-12-31
+2026-09-13 20:40:57 - tick_vault - DEBUG - close:430 - Closed metadata database connection
+2026-09-13 20:40:57 - tick_vault - INFO - download_range:68 - Found 26280 chunks to download for EURUSD
+2026-09-13 20:40:57 - tick_vault - DEBUG - download_range:78 - Using 10 workers across 1 proxies
+2026-09-13 20:40:57 - tick_vault - DEBUG - download_range:87 - Starting download workers and metadata worker
+2026-09-13 20:40:57 - tick_vault - DEBUG - metadata_worker:42 - Metadata worker started
+2026-09-13 20:40:57 - tick_vault - DEBUG - __init__:50 - Initialized metadata database at tick_vault_data\metadata.db
+2026-09-13 20:40:57 - tick_vault - DEBUG - download_worker:49 - Download worker started with proxy: None
+2026-09-13 20:40:58 - tick_vault - DEBUG - fetch_with_retry:196 - Fetching URL: https://datafeed.dukascopy.com/datafeed/EURUSD/2023/00/01/00h_ticks.bi5
+2026-09-13 20:40:58 - tick_vault - DEBUG - download_worker:49 - Download worker started with proxy: None
+2026-09-13 20:40:58 - tick_vault - DEBUG - fetch_with_retry:196 - Fetching URL: https://datafeed.dukascopy.com/datafeed/EURUSD/2023/00/01/01h_ticks.bi5
+2026-09-13 20:40:58 - tick_vault - DEBUG - download_worker:49 - Download worker started with proxy: None
+2026-09-13 20:40:59 - tick_vault - DEBUG - fetch_with_retry:196 - Fetching URL: https://datafeed.dukascopy.com/datafeed/EURUSD/2023/00/01/02h_ticks.bi5
+2026-09-13 20:40:59 - tick_vault - DEBUG - download_worker:49 - Download worker started with proxy: None
+2026-09-13 20:41:00 - tick_vault - DEBUG - fetch_with_retry:196 - Fetching URL: https://datafeed.dukascopy.com/datafeed/EURUSD/2023/00/01/03h_ticks.bi5
+2026-09-13 20:41:00 - tick_vault - DEBUG - download_worker:49 - Download worker started with proxy: None
+2026-09-13 20:41:00 - tick_vault - DEBUG - fetch_with_retry:196 - Fetching URL: https://datafeed.dukascopy.com/datafeed/EURUSD/2023/00/01/04h_ticks.bi5
+2026-09-13 20:41:00 - tick_vault - DEBUG - download_worker:49 - Download worker started with proxy: None
+2026-09-13 20:41:01 - tick_vault - DEBUG - fetch_with_retry:196 - Fetching URL: https://datafeed.dukascopy.com/datafeed/EURUSD/2023/00/01/05h_ticks.bi5
+2026-09-13 20:41:01 - tick_vault - DEBUG - download_worker:49 - Download worker started with proxy: None
+2026-09-13 20:41:01 - tick_vault - DEBUG - fetch_with_retry:196 - Fetching URL: https://datafeed.dukascopy.com/datafeed/EURUSD/2023/00/01/06h_ticks.bi5
+2026-09-13 20:41:01 - tick_vault - DEBUG - download_worker:49 - Download worker started with proxy: None
+2026-09-13 20:41:02 - tick_vault - DEBUG - fetch_with_retry:196 - Fetching URL: https://datafeed.dukascopy.com/datafeed/EURUSD/2023/00/01/07h_ticks.bi5
+2026-09-13 20:41:02 - tick_vault - DEBUG - download_worker:49 - Download worker started with proxy: None
+2026-09-13 20:41:02 - tick_vault - DEBUG - fetch_with_retry:196 - Fetching URL: https://datafeed.dukascopy.com/datafeed/EURUSD/2023/00/01/08h_ticks.bi5
+2026-09-13 20:41:02 - tick_vault - DEBUG - download_worker:49 - Download worker started with proxy: None
+2026-09-13 20:41:03 - tick_vault - DEBUG - fetch_with_retry:196 - Fetching URL: https://datafeed.dukascopy.com/datafeed/EURUSD/2023/00/01/09h_ticks.bi5
+2026-09-13 20:41:03 - tick_vault - WARNING - _fetch:82 - Rate limited (429) for https://datafeed.dukascopy.com/datafeed/EURUSD/2023/00/01/00h_ticks.bi5, retry_after=Nones
+2026-09-13 20:41:03 - tick_vault - WARNING - _fetch:82 - Rate limited (429) for https://datafeed.dukascopy.com/datafeed/EURUSD/2023/00/01/05h_ticks.bi5, retry_after=Nones
+2026-09-13 20:41:03 - tick_vault - WARNING - _fetch:82 - Rate limited (429) for https://datafeed.dukascopy.com/datafeed/EURUSD/2023/00/01/01h_ticks.bi5, retry_after=Nones
+2026-09-13 20:41:03 - tick_vault - WARNING - _fetch:82 - Rate limited (429) for https://datafeed.dukascopy.com/datafeed/EURUSD/2023/00/01/08h_ticks.bi5, retry_after=Nones
+2026-09-13 20:41:03 - tick_vault - WARNING - _fetch:82 - Rate limited (429) for https://datafeed.dukascopy.com/datafeed/EURUSD/2023/00/01/04h_ticks.bi5, retry_after=Nones
+2026-09-13 20:41:03 - tick_vault - WARNING - _fetch:82 - Rate limited (429) for https://datafeed.dukascopy.com/datafeed/EURUSD/2023/00/01/06h_ticks.bi5, retry_after=Nones
+2026-09-13 20:41:03 - tick_vault - WARNING - _fetch:82 - Rate limited (429) for https://datafeed.dukascopy.com/datafeed/EURUSD/2023/00/01/02h_ticks.bi5, retry_after=Nones
+2026-09-13 20:41:03 - tick_vault - WARNING - _fetch:82 - Rate limited (429) for https://datafeed.dukascopy.com/datafeed/EURUSD/2023/00/01/07h_ticks.bi5, retry_after=Nones
+2026-09-13 20:41:03 - tick_vault - WARNING - _fetch:82 - Rate limited (429) for https://datafeed.dukascopy.com/datafeed/EURUSD/2023/00/01/09h_ticks.bi5, retry_after=Nones
+2026-09-13 20:41:03 - tick_vault - WARNING - _fetch:82 - Rate limited (429) for https://datafeed.dukascopy.com/datafeed/EURUSD/2023/00/01/03h_ticks.bi5, retry_after=Nones
+2026-09-13 20:42:02 - tick_vault - WARNING - metadata_worker:94 - Metadata worker timeout - assuming parent crashed
+2026-09-13 20:42:02 - tick_vault - DEBUG - close:430 - Closed metadata database connection
+2026-09-13 20:45:55 - tick_vault - DEBUG - download_range:153 - Sending stop signals to workers
+2026-09-13 20:45:55 - tick_vault - DEBUG - download_range:162 - Waiting for workers to finish
+2026-09-13 20:45:55 - tick_vault - INFO - download_range:48 - Starting download for GBPUSD from 2023-01-01 to 2025-12-31
+2026-09-13 20:45:55 - tick_vault - DEBUG - __init__:50 - Initialized metadata database at tick_vault_data\metadata.db
+2026-09-13 20:45:55 - tick_vault - DEBUG - _ensure_table_exists:75 - Ensuring table exists for symbol: GBPUSD
+2026-09-13 20:45:55 - tick_vault - DEBUG - find_not_attempted_chunks:189 - Found 26280 not-attempted chunks for GBPUSD from 2023-01-01 to 2025-12-31
+2026-09-13 20:45:55 - tick_vault - DEBUG - close:430 - Closed metadata database connection
+2026-09-13 20:45:55 - tick_vault - INFO - download_range:68 - Found 26280 chunks to download for GBPUSD
+2026-09-13 20:45:55 - tick_vault - DEBUG - download_range:78 - Using 10 workers across 1 proxies
+2026-09-13 20:45:55 - tick_vault - DEBUG - download_range:87 - Starting download workers and metadata worker
+2026-09-13 20:45:55 - tick_vault - DEBUG - metadata_worker:42 - Metadata worker started
+2026-09-13 20:45:55 - tick_vault - DEBUG - __init__:50 - Initialized metadata database at tick_vault_data\metadata.db
+2026-09-13 20:45:55 - tick_vault - DEBUG - download_worker:49 - Download worker started with proxy: None
+2026-09-13 20:45:56 - tick_vault - DEBUG - fetch_with_retry:196 - Fetching URL: https://datafeed.dukascopy.com/datafeed/GBPUSD/2023/00/01/00h_ticks.bi5
+2026-09-13 20:45:56 - tick_vault - DEBUG - download_worker:49 - Download worker started with proxy: None
+2026-09-13 20:45:56 - tick_vault - DEBUG - fetch_with_retry:196 - Fetching URL: https://datafeed.dukascopy.com/datafeed/GBPUSD/2023/00/01/01h_ticks.bi5
+2026-09-13 20:45:56 - tick_vault - DEBUG - download_worker:49 - Download worker started with proxy: None
+2026-09-13 20:45:57 - tick_vault - DEBUG - fetch_with_retry:196 - Fetching URL: https://datafeed.dukascopy.com/datafeed/GBPUSD/2023/00/01/02h_ticks.bi5
+2026-09-13 20:45:57 - tick_vault - DEBUG - download_worker:49 - Download worker started with proxy: None
+2026-09-13 20:45:57 - tick_vault - DEBUG - fetch_with_retry:196 - Fetching URL: https://datafeed.dukascopy.com/datafeed/GBPUSD/2023/00/01/03h_ticks.bi5
+2026-09-13 20:45:57 - tick_vault - DEBUG - download_worker:49 - Download worker started with proxy: None
+2026-09-13 20:45:58 - tick_vault - DEBUG - fetch_with_retry:196 - Fetching URL: https://datafeed.dukascopy.com/datafeed/GBPUSD/2023/00/01/04h_ticks.bi5
+2026-09-13 20:45:58 - tick_vault - DEBUG - download_worker:49 - Download worker started with proxy: None
+2026-09-13 20:45:59 - tick_vault - DEBUG - fetch_with_retry:196 - Fetching URL: https://datafeed.dukascopy.com/datafeed/GBPUSD/2023/00/01/05h_ticks.bi5
+2026-09-13 20:45:59 - tick_vault - DEBUG - download_worker:49 - Download worker started with proxy: None
+2026-09-13 20:45:59 - tick_vault - DEBUG - fetch_with_retry:196 - Fetching URL: https://datafeed.dukascopy.com/datafeed/GBPUSD/2023/00/01/06h_ticks.bi5
+2026-09-13 20:45:59 - tick_vault - DEBUG - download_worker:49 - Download worker started with proxy: None
+2026-09-13 20:46:00 - tick_vault - DEBUG - fetch_with_retry:196 - Fetching URL: https://datafeed.dukascopy.com/datafeed/GBPUSD/2023/00/01/07h_ticks.bi5
+2026-09-13 20:46:00 - tick_vault - DEBUG - download_worker:49 - Download worker started with proxy: None
+2026-09-13 20:46:00 - tick_vault - DEBUG - fetch_with_retry:196 - Fetching URL: https://datafeed.dukascopy.com/datafeed/GBPUSD/2023/00/01/08h_ticks.bi5
+2026-09-13 20:46:00 - tick_vault - DEBUG - download_worker:49 - Download worker started with proxy: None
+2026-09-13 20:46:01 - tick_vault - DEBUG - fetch_with_retry:196 - Fetching URL: https://datafeed.dukascopy.com/datafeed/GBPUSD/2023/00/01/09h_ticks.bi5
+2026-09-13 20:46:06 - tick_vault - WARNING - _fetch:138 - Timeout while fetching https://datafeed.dukascopy.com/datafeed/GBPUSD/2023/00/01/04h_ticks.bi5
+2026-09-13 20:46:06 - tick_vault - INFO - fetch_with_retry:228 - Retryable error, backing off 1.0s (attempt 1/4)
+2026-09-13 20:46:06 - tick_vault - WARNING - _fetch:138 - Timeout while fetching https://datafeed.dukascopy.com/datafeed/GBPUSD/2023/00/01/03h_ticks.bi5
+2026-09-13 20:46:06 - tick_vault - INFO - fetch_with_retry:228 - Retryable error, backing off 1.0s (attempt 1/4)
+2026-09-13 20:46:06 - tick_vault - WARNING - _fetch:138 - Timeout while fetching https://datafeed.dukascopy.com/datafeed/GBPUSD/2023/00/01/01h_ticks.bi5
+2026-09-13 20:46:06 - tick_vault - INFO - fetch_with_retry:228 - Retryable error, backing off 1.0s (attempt 1/4)
+2026-09-13 20:46:06 - tick_vault - WARNING - _fetch:138 - Timeout while fetching https://datafeed.dukascopy.com/datafeed/GBPUSD/2023/00/01/02h_ticks.bi5
+2026-09-13 20:46:06 - tick_vault - INFO - fetch_with_retry:228 - Retryable error, backing off 1.0s (attempt 1/4)
+2026-09-13 20:46:06 - tick_vault - WARNING - _fetch:138 - Timeout while fetching https://datafeed.dukascopy.com/datafeed/GBPUSD/2023/00/01/08h_ticks.bi5
+2026-09-13 20:46:06 - tick_vault - INFO - fetch_with_retry:228 - Retryable error, backing off 1.0s (attempt 1/4)
+2026-09-13 20:46:06 - tick_vault - WARNING - _fetch:138 - Timeout while fetching https://datafeed.dukascopy.com/datafeed/GBPUSD/2023/00/01/00h_ticks.bi5
+2026-09-13 20:46:06 - tick_vault - INFO - fetch_with_retry:228 - Retryable error, backing off 1.0s (attempt 1/4)
+2026-09-13 20:46:06 - tick_vault - WARNING - _fetch:138 - Timeout while fetching https://datafeed.dukascopy.com/datafeed/GBPUSD/2023/00/01/05h_ticks.bi5
+2026-09-13 20:46:06 - tick_vault - INFO - fetch_with_retry:228 - Retryable error, backing off 1.0s (attempt 1/4)
+2026-09-13 20:46:06 - tick_vault - WARNING - _fetch:138 - Timeout while fetching https://datafeed.dukascopy.com/datafeed/GBPUSD/2023/00/01/09h_ticks.bi5
+2026-09-13 20:46:06 - tick_vault - INFO - fetch_with_retry:228 - Retryable error, backing off 1.0s (attempt 1/4)
+2026-09-13 20:46:06 - tick_vault - WARNING - _fetch:138 - Timeout while fetching https://datafeed.dukascopy.com/datafeed/GBPUSD/2023/00/01/06h_ticks.bi5
+2026-09-13 20:46:06 - tick_vault - INFO - fetch_with_retry:228 - Retryable error, backing off 1.0s (attempt 1/4)
+2026-09-13 20:46:06 - tick_vault - WARNING - _fetch:138 - Timeout while fetching https://datafeed.dukascopy.com/datafeed/GBPUSD/2023/00/01/07h_ticks.bi5
+2026-09-13 20:46:06 - tick_vault - INFO - fetch_with_retry:228 - Retryable error, backing off 1.0s (attempt 1/4)
+2026-09-13 20:46:09 - tick_vault - DEBUG - close:430 - Closed metadata database connection
+2026-09-13 20:46:09 - tick_vault - DEBUG - download_range:153 - Sending stop signals to workers
+2026-09-13 20:46:09 - tick_vault - DEBUG - download_range:162 - Waiting for workers to finish
+2026-09-13 20:46:09 - tick_vault - DEBUG - download_range:180 - Workers cancelled

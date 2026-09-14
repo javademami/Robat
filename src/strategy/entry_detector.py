@@ -75,7 +75,7 @@ from typing import Any, Iterable, Optional
 # CONFIG
 # ============================================================
 
-MIN_ENTRY_SCORE = 70.0
+MIN_ENTRY_SCORE = 50.0
 
 
 SCORE_WEIGHTS = {
@@ -425,7 +425,14 @@ def _find_mss_for_retest(
         if exact:
             return exact[-1]
 
-    return candidates[-1]
+    # FIX: previously fell back to candidates[-1] here, which
+    # could silently link an unrelated event (same direction,
+    # wrong timing) to this retest, producing chains that later
+    # failed the MSS < Displacement < Retest < Micro-MSS sequence
+    # check for reasons that looked like bad data but were
+    # actually 'wrong event attached'. No real relationship found
+    # -> return None, not a random one.
+    return None
 
 
 def _find_displacement_for_retest(
@@ -471,7 +478,14 @@ def _find_displacement_for_retest(
         if exact:
             return exact[-1]
 
-    return candidates[-1]
+    # FIX: previously fell back to candidates[-1] here, which
+    # could silently link an unrelated event (same direction,
+    # wrong timing) to this retest, producing chains that later
+    # failed the MSS < Displacement < Retest < Micro-MSS sequence
+    # check for reasons that looked like bad data but were
+    # actually 'wrong event attached'. No real relationship found
+    # -> return None, not a random one.
+    return None
 
 
 def _find_zone_for_retest(
@@ -1388,6 +1402,7 @@ def detect_entry_candidates(
     *,
     context: Optional[dict[str, Any]] = None,
     min_score: float = MIN_ENTRY_SCORE,
+    debug: bool = False,
 ) -> list[EntryCandidate]:
     """
     Build EntryCandidate objects from the locked pipeline.
@@ -1403,6 +1418,13 @@ def detect_entry_candidates(
         Micro-MSS V1.2
 
     Only valid chains become candidates.
+
+    debug=True prints a stage-by-stage breakdown (how many
+    Micro-MSS events matched a Retest, MSS, Displacement, Zone,
+    passed chain validation, had a usable entry price, and their
+    final grade distribution) plus one line per rejected chain
+    with its specific reason. This replaces silently returning
+    "Entry candidates: 0" with no explanation.
     """
 
     micro_events = sorted(
@@ -1427,6 +1449,25 @@ def detect_entry_candidates(
 
     seen = set()
 
+    stats = {
+        "total_micro_mss": len(micro_events),
+        "retest_matched": 0,
+        "retest_missing": 0,
+        "mss_matched": 0,
+        "mss_missing": 0,
+        "displacement_matched": 0,
+        "displacement_missing": 0,
+        "zone_matched": 0,
+        "zone_missing": 0,
+        "chain_pass": 0,
+        "chain_fail": 0,
+        "duplicate_skipped": 0,
+        "entry_price_valid": 0,
+        "entry_price_missing": 0,
+    }
+    reject_reasons: list[dict[str, Any]] = []
+    grade_counts: dict[str, int] = {}
+
     for micro in micro_events:
 
         # ----------------------------------------------------
@@ -1439,7 +1480,16 @@ def detect_entry_candidates(
         )
 
         if retest is None:
+            stats["retest_missing"] += 1
+            if debug:
+                reject_reasons.append({
+                    "timestamp": _value(micro, "timestamp"),
+                    "stage": "retest",
+                    "reason": "No matching Retest found",
+                })
             continue
+
+        stats["retest_matched"] += 1
 
         # ----------------------------------------------------
         # Find MSS
@@ -1449,6 +1499,11 @@ def detect_entry_candidates(
             retest,
             mss_list,
         )
+
+        if mss is None:
+            stats["mss_missing"] += 1
+        else:
+            stats["mss_matched"] += 1
 
         # ----------------------------------------------------
         # Find Displacement
@@ -1461,6 +1516,11 @@ def detect_entry_candidates(
             )
         )
 
+        if displacement is None:
+            stats["displacement_missing"] += 1
+        else:
+            stats["displacement_matched"] += 1
+
         # ----------------------------------------------------
         # Find OB / FVG
         # ----------------------------------------------------
@@ -1469,6 +1529,11 @@ def detect_entry_candidates(
             retest,
             zones,
         )
+
+        if zone is None:
+            stats["zone_missing"] += 1
+        else:
+            stats["zone_matched"] += 1
 
         # ----------------------------------------------------
         # Validate complete chain
@@ -1486,7 +1551,20 @@ def detect_entry_candidates(
         )
 
         if not valid:
+            stats["chain_fail"] += 1
+            if debug:
+                reject_reasons.append({
+                    "timestamp": _value(micro, "timestamp"),
+                    "stage": "chain_validation",
+                    "reason": (
+                        chain_warnings[0]
+                        if chain_warnings
+                        else "Unknown chain failure"
+                    ),
+                })
             continue
+
+        stats["chain_pass"] += 1
 
         # ----------------------------------------------------
         # Direction
@@ -1540,6 +1618,7 @@ def detect_entry_candidates(
         )
 
         if dedup_key in seen:
+            stats["duplicate_skipped"] += 1
             continue
 
         seen.add(dedup_key)
@@ -1573,7 +1652,16 @@ def detect_entry_candidates(
             )
 
         if entry_price is None:
+            stats["entry_price_missing"] += 1
+            if debug:
+                reject_reasons.append({
+                    "timestamp": micro_timestamp,
+                    "stage": "entry_price",
+                    "reason": "No entry price available",
+                })
             continue
+
+        stats["entry_price_valid"] += 1
 
         # ----------------------------------------------------
         # Score
@@ -1667,6 +1755,88 @@ def detect_entry_candidates(
         )
 
         candidates.append(candidate)
+
+        grade_counts[candidate.grade] = (
+            grade_counts.get(candidate.grade, 0) + 1
+        )
+
+    if debug:
+
+        print("\n" + "-" * 60)
+        print("ENTRY DETECTOR DEBUG")
+        print("-" * 60)
+
+        print(f"\nMicro-MSS: {stats['total_micro_mss']}")
+
+        print(
+            f"\nRetest matched:\n"
+            f"  {stats['retest_matched']} / "
+            f"{stats['total_micro_mss']}"
+        )
+
+        print(
+            f"\nMSS matched:\n"
+            f"  {stats['mss_matched']} / "
+            f"{stats['retest_matched']}"
+        )
+
+        print(
+            f"\nDisplacement matched:\n"
+            f"  {stats['displacement_matched']} / "
+            f"{stats['retest_matched']}"
+        )
+
+        print(
+            f"\nZone matched:\n"
+            f"  {stats['zone_matched']} / "
+            f"{stats['retest_matched']}"
+        )
+
+        print(
+            f"\nChain validation:\n"
+            f"  PASS: {stats['chain_pass']}\n"
+            f"  FAIL: {stats['chain_fail']}"
+        )
+
+        print(
+            f"\nEntry price:\n"
+            f"  valid:   {stats['entry_price_valid']}\n"
+            f"  missing: {stats['entry_price_missing']}"
+        )
+
+        if stats["duplicate_skipped"]:
+            print(
+                f"\nDuplicates skipped: "
+                f"{stats['duplicate_skipped']}"
+            )
+
+        if grade_counts:
+            print("\nScoring:")
+            for grade in ["A+", "A", "B", "C", "D"]:
+                if grade in grade_counts:
+                    print(f"  {grade}: {grade_counts[grade]}")
+
+        tradable_count = sum(
+            1 for c in candidates if c.tradable
+        )
+
+        print(f"\nCandidates: {len(candidates)}")
+        print(f"Tradable:   {tradable_count}")
+
+        if reject_reasons:
+            print(
+                f"\nRejected chains "
+                f"(showing up to 20 of "
+                f"{len(reject_reasons)}):"
+            )
+            for item in reject_reasons[:20]:
+                print(
+                    f"  REJECT  stage={item['stage']:18s} "
+                    f"timestamp={item['timestamp']}  "
+                    f"reason={item['reason']}"
+                )
+
+        print("-" * 60)
 
     return candidates
 

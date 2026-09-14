@@ -1,0 +1,4 @@
+symbol,micro_mss,candidates,tradable,min_score,max_score,mean_score,bullish,bearish,ob,fvg
+BTCUSDT,23,23,21,67.0,91.0,76.78,11,12,15,8
+ETHUSDT,17,16,15,66.0,92.0,79.12,10,6,14,2
+SOLUSDT,22,22,21,68.0,92.0,80.0,12,10,16,6
